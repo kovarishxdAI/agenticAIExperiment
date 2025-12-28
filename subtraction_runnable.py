@@ -1,7 +1,7 @@
 import asyncio
 from my_runnable import Runnable
 from my_utils import flatten_numbers
-from typing import TypeVar, Iterable
+from typing import TypeVar, Iterable, Generic
 from collections.abc import Mapping
 
 NumberT = TypeVar("NumberT", int, float)
