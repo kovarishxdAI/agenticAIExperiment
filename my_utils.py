@@ -5,11 +5,8 @@ NumberT = TypeVar("NumberT", int, float)
 ConfigT = TypeVar("ConfigT", bound=Mapping)
 
 def flatten_numbers(items: Iterable[Union[NumberT, Iterable]], config: ConfigT | None= None) -> list[NumberT]:
-    filler = 0
-    if config is None or "emptyListFiller" not in config:
-        filler = 0
-    else:
-        filler = config.get("emptyListFiller", 0)
+   
+    filler = config.get("empty_list_filler", 0) if config else 0
     
     # Recursively flatten numbers from any nested structure.
     result = []

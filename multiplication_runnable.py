@@ -13,10 +13,10 @@ class MultiplicationRunnable(Runnable[NumbersT | Iterable, NumbersT, ConfigT]):
     def __init__(self, *values: NumbersT | Iterable) -> None:
         super().__init__()
         self.name = self.__class__.__name__
-        self.values = flatten_numbers(values, {"emptyListFiller": 1})
+        self.values = flatten_numbers(values, {"empty_list_filler": 1})
 
     async def _call(self, input: NumbersT | Iterable, config: ConfigT | None = None) -> NumbersT:
-        nums = self.values + flatten_numbers([input], {"emptyListFiller": 1})
+        nums = self.values + flatten_numbers([input], {"empty_list_filler": 1})
         return prod(nums)
     
 def testing():
