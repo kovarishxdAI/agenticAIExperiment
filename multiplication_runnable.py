@@ -1,4 +1,4 @@
-from math import prod
+from math import prod, isclose
 from typing import TypeVar, Iterable
 from collections.abc import Mapping
 from my_runnable import Runnable
@@ -36,6 +36,16 @@ def testing():
         results2 = asyncio.run(test2seq.invoke([[3],1]))
         assert results2 == 129.6, f"Expected 108, got {results2}."
         print(f"Passed [1, 2, 3] in the first constructor, 1, [2, [3], [\"c\", [1.2]]] in the second, and [[3],1] in invoke, got {results2}. Test 2 passed.\n")
+
+        print('Test 3: Sequence of numeric inputs, using batch.')
+        results3 = asyncio.run(test1.batch([3, 5]))
+        assert all(isclose(a, b) for a, b in zip(results3, [18, 30])), f"Expected [18, 30], got {results3}."
+        print(f"Passed 1, 2, 3 in constructor and [3, 5] in invoke, got {results3}. Test 3 passed.\n")
+
+        print('Test 4: Pipeline of two Runnables receiving a mix numberic values and list of lists, using batch.')
+        results4 = asyncio.run(test2seq.batch([3, 1]))
+        assert all(isclose(a, b) for a, b in zip(results4, [129.6, 43.2])), f"Expected [129.6, 43.2], got [" + ", ".join(f"{x:g}" for x in results4) + "]."
+        print(f"Passed [1, 2, 3] in the first constructor, 1, [2, [3], [\"c\", [1.2]]] in the second, and [[3],1] in invoke, got [" + ", ".join(f"{x:g}" for x in results4) + "].\n")
 
         print("Yeap, all tests passed.")
 

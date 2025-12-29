@@ -17,7 +17,7 @@ class Runnable(Generic[InputT, OutputT, ConfigT]):
     def __str__(self) -> str:
         return self.name
 
-    async def _call (self, input: InputT, config: ConfigT | None =None) -> OutputT:
+    async def _call (self, input: InputT, config: ConfigT | None = None) -> OutputT:
         raise NotImplementedError(
             f"Method not implemented. The class {self.__class__.__name__} must itself implement the _call() method."
         )
@@ -26,7 +26,7 @@ class Runnable(Generic[InputT, OutputT, ConfigT]):
         yield await self._call(input, config)
 
 
-    async def invoke(self, input: InputT, config: ConfigT | None =None) -> OutputT:
+    async def invoke(self, input: InputT, config: ConfigT | None = None) -> OutputT:
         return await self._call(input, config)
     
     async def stream(self, input: InputT, config: ConfigT | None = None) -> AsyncGenerator[OutputT, None]:
@@ -34,7 +34,7 @@ class Runnable(Generic[InputT, OutputT, ConfigT]):
 
     async def batch(self, inputs: Sequence[InputT], config: ConfigT | None = None) -> list[OutputT]:
         if config is None:
-            config = {}  # type: ignore[misc]
+            config = {}
         tasks = [self.invoke(input, config) for input in inputs]
         return await asyncio.gather(*tasks)
     
