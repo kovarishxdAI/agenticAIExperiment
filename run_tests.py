@@ -1,0 +1,27 @@
+from runnables import addition_runnable, subtraction_runnable, multiplication_runnable, division_runnable
+from runnables import json_builder_runnable, json_parser_runnable
+
+def running_tests(testScope):
+    match testScope:
+        case "Add":
+            addition_runnable.testing()
+        case "Sub":
+            subtraction_runnable.testing()
+        case "Mul":
+            multiplication_runnable.testing()
+        case "Div":
+            division_runnable.testing()
+        case "JsonB":
+            json_builder_runnable.testing()
+        case "JsonP":
+            json_parser_runnable.testing()
+        case "All":
+            addition_runnable.testing()
+            subtraction_runnable.testing()
+            multiplication_runnable.testing()
+            division_runnable.testing()
+            json_builder_runnable.testing()
+            json_parser_runnable.testing()
+
+if __name__ == "__main__":
+    running_tests("All")

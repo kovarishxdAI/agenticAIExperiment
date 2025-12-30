@@ -1,8 +1,8 @@
 from math import prod, isclose
 from typing import TypeVar, Iterable
 from collections.abc import Mapping
-from my_runnable import Runnable
-from my_utils import flatten_numbers
+from .my_runnable import Runnable
+from utils.my_utils import flatten_numbers
 import asyncio
 
 NumbersT = TypeVar("NumbersT", int, float)

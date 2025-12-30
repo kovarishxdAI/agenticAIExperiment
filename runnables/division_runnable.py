@@ -1,4 +1,4 @@
-from my_runnable import Runnable
+from .my_runnable import Runnable
 from typing import TypeVar
 from collections.abc import Mapping
 import asyncio
