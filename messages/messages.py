@@ -1,5 +1,5 @@
 from datetime import datetime, timezone, timedelta
-import random, string, time
+import random, string, time, re
 
 # Implementation similar to that of LangChain.
 
@@ -58,7 +58,7 @@ class BaseMessage():
         local_timezone = timezone(local_offset)
         local_time = self.message_timestamp.astimezone(local_timezone)
         formated_timestamp = local_time.strftime("%Y-%m-%d %H:%M:%S")
-        return f'[{formated_timestamp}] {self.get_type()}: {self.message_text}'
+        return f'[{formated_timestamp}] {self.get_type().capitalize()}: {self.message_text}'
     
 class AIMessage(BaseMessage):
     def __init__(self, message_text: str, params: dict = None) -> None:
@@ -139,7 +139,7 @@ def merge_consecutive_messages(messages):
         last = merged[-1]
         
         # Merge if same type and both are strings
-        if (current.get_type == last.get_type and isinstance(current.message_text, str) and isinstance(last.message_text, str) and current.get_type != "tool"):
+        if (current.get_type() == last.get_type() and isinstance(current.message_text, str) and isinstance(last.message_text, str) and current.get_type != "tool"):
             merged_content = last.message_text + "\n" + current.message_text
             merged[-1] = type(last)(merged_content, {**last.params, "merged": True})
         else:
@@ -147,23 +147,38 @@ def merge_consecutive_messages(messages):
     
     return merged
 
-# Example Usage
+
 def testing():
+    print('Testing Messages:\n')
+
     try:
         system_msg = SystemMessage("System message content.")
         human_msg = HumanMessage("Hello AI, how are you?")
         ai_msg = AIMessage("I'm good, thank you for asking!", {"tool_calls": ["run_analysis"]})
         tool_msg = ToolMessage("Analysis result", "tool_call_123")
 
-        # Convert to prompt format
+        print("Test 1: Convert to promp format.")
         messages = [system_msg, human_msg, ai_msg, tool_msg]
         prompt_messages = messages_to_prompt_format(messages)
         print(prompt_messages, "\n")
+        print("Test 1 passed.\n")
 
-        # Merge consecutive messages (example with same type)
+        print("Test 2: Merge sequential messages of the same type.")
         merged_messages = merge_consecutive_messages([human_msg, HumanMessage("How are you?")])
         for msg in merged_messages:
             print(msg)
+        pattern = r"\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]"
+        assert bool(re.search(pattern, str(merged_messages[0]))), f"Message does not contain correct timestamp {merged_messages[0]}"
+        print("Test 2 passed.\n")
+
+        print("Test 3: Merge sequential messages of different types.")
+        merged_messages = merge_consecutive_messages([system_msg, human_msg, HumanMessage("How was your time off?"), ai_msg])
+        for msg in merged_messages:
+            print(msg)
+        print("Test 3 passed.\n")
+
+    except AssertionError as e:
+        print('Error: : ', e)
     except Exception as e:
         print('Unexpected error: : ', e)
 

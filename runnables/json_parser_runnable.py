@@ -33,9 +33,9 @@ class JsonParserRunnable(Runnable[str, Mapping, ConfigT]):
 
 
 def testing():
-    try:
-        print("Testing MultiplicationRunnable:\n")
+    print("Testing JsonParserRunnable:\n")
 
+    try:
         print('Test 1: Valid JSON object.')
         parser = JsonParserRunnable()
         results1 = asyncio.run(parser.invoke('{"band":"Dream Theater","music_length_min":25}'))
@@ -71,7 +71,7 @@ def testing():
         assert results6['music']['music_length_min'] == 25, f"Expected 25, got {results6['music']['music_length_min']}."
         print(f'Passed {{"band":"Dream Theater","music": {{"music_name": "Octavarium", "music_length_min":25}}}} in invoke, got {results6}. Test 6 passed.\n')
 
-        print("Yeap, all tests passed.")
+        print("Yeap, all JsonParserRunnable tests passed.\n")
 
     except AssertionError as e:
         print('Test failed: ', e)

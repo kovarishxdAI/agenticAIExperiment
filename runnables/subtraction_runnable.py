@@ -18,9 +18,9 @@ class SubtractionRunnable(Runnable[NumberT, NumberT, ConfigT]):
         return self.value - sum(nums)
 
 def testing():
-    try:
-        print('Test')
+    print("Testing SubtractionRunnable:\n")
 
+    try:
         print('Test 1: Sequence of numeric inputs.')
         test1 = SubtractionRunnable(10)
         results1 = asyncio.run(test1.invoke(4))
@@ -41,7 +41,7 @@ def testing():
         assert results3 == 94, f"Expected 94, got {results3}"
         print(f"Passed 10 in constructor, 100 in the second, and [\"c\", [4]] in invoke, got {results3}. Test 3 passed.\n")
 
-        print("Yeap, all tests passed.")
+        print("Yeap, all SubtractionRunnable tests passed.\n")
 
     except AssertionError as e:
         print('Test failed: ', e)

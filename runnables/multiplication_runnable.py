@@ -20,9 +20,9 @@ class MultiplicationRunnable(Runnable[NumbersT | Iterable, NumbersT, ConfigT]):
         return prod(nums)
     
 def testing():
-    try:
-        print("Testing MultiplicationRunnable:\n")
+    print("Testing MultiplicationRunnable:\n")
 
+    try:
         print('Test 1: Sequence of numeric inputs.')
         test1 = MultiplicationRunnable(1, 2, 3)
         results1 = asyncio.run(test1.invoke([3]))
@@ -47,7 +47,7 @@ def testing():
         assert all(isclose(a, b) for a, b in zip(results4, [129.6, 43.2])), f"Expected [129.6, 43.2], got [" + ", ".join(f"{x:g}" for x in results4) + "]."
         print(f"Passed [1, 2, 3] in the first constructor, 1, [2, [3], [\"c\", [1.2]]] in the second, and [[3],1] in invoke, got [" + ", ".join(f"{x:g}" for x in results4) + "].\n")
 
-        print("Yeap, all tests passed.")
+        print("Yeap, all MultiplicationRunnable tests passed.\n")
 
     except AssertionError as e:
         print('Test failed: ', e)

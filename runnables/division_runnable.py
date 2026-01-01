@@ -16,7 +16,7 @@ class DivisionRunnable(Runnable[NumberT, NumberT, ConfigT]):
         return self.value / input
     
 def testing():
-    print('Testing AdditionRunnable:\n')
+    print('Testing DivisionRunnable:\n')
 
     try:
         print('Test 1: Int input in both constructor and invoke.')
@@ -32,7 +32,7 @@ def testing():
         assert rounded_result2 == 0.4, f"Expected 0.4, got {rounded_result2}"
         print(f"Passed 2.3 in constructor and 5.7653423465 in invoke, got {rounded_result2}. Test 2 passed.\n")
 
-        print("Yeap, all tests passed.")
+        print("Yeap, all DivisionRunnable tests passed.\n")
 
     except AssertionError as e:
         print('Test failed: ', e)

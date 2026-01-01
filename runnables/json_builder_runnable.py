@@ -20,7 +20,7 @@ class JsonBuilderRunnable(Runnable[Any, str, ConfigT]):
     
 
 def testing():
-    print('Testing AdditionRunnable:\n')
+    print('Testing JsonBuilderRunnable:\n')
 
     try:
         print('Test 1: Number serialisation.')
@@ -44,7 +44,7 @@ def testing():
         assert results4 == '{"result": [1, 5.2, "c"]}', f"Expected [1, 5.2, \"c\"] object, got {results4}"
         print(f"Passed the [1, 5.2, \"c\"] in invoke, got {results4}. Test 4 passed.\n")
 
-        print("Yeap, all tests passed.")
+        print("Yeap, all JsonBuilderRunnable tests passed.\n")
 
     except AssertionError as e:
         print('Test failed: ', e)

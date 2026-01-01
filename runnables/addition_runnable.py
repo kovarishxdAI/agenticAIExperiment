@@ -40,7 +40,7 @@ def testing():
         assert results3 == 10, f"Expected 10, got {results3}"
         print(f"Passed [1, 2, [3, \"c\", []]] in constructor and [\"c\", 4] in invoke, got {results3}. Test 3 passed.\n")
 
-        print("Yeap, all tests passed.")
+        print("Yeap, all AdditionRunnable tests passed.\n")
 
     except AssertionError as e:
         print('Test failed: ', e)
