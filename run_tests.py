@@ -1,5 +1,6 @@
 from runnables import addition_runnable, subtraction_runnable, multiplication_runnable, division_runnable
 from runnables import json_builder_runnable, json_parser_runnable
+from messages import message
 
 def running_tests(testScope):
     match testScope:
@@ -15,6 +16,8 @@ def running_tests(testScope):
             json_builder_runnable.testing()
         case "JsonP":
             json_parser_runnable.testing()
+        case "Messages":
+            return message.testing()
         case "All":
             addition_runnable.testing()
             subtraction_runnable.testing()
@@ -22,6 +25,7 @@ def running_tests(testScope):
             division_runnable.testing()
             json_builder_runnable.testing()
             json_parser_runnable.testing()
+            message.testing()
 
 if __name__ == "__main__":
     running_tests("All")
