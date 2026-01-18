@@ -81,25 +81,28 @@ def testing():
         ai_msg = AIMessage("I'm good, thank you for asking!", {"tool_calls": ["run_analysis"]})
         tool_msg = ToolMessage("Analysis result", "tool_call_123")
 
+        print("Testing add_message method:")
         chat_history = ChatHistory()
         chat_history.add_message([human_msg, ai_msg, system_msg, tool_msg])
         chat_history.print_chat_history()
 
-        print("\nTesting prompt chat format:")
+        print("\nTesting to_prompt_format method:")
         print(chat_history.to_prompt_format())
 
-        print("\nTesting to_json function:")
+        print("\nTesting to_json method:")
         json_object = chat_history.to_json()
         print(json_object)
 
-        print("\nTesting from_json function:")
+        print("\nTesting from_json method:")
         chat_history_test = ChatHistory()
         chat_history_test.from_json(json_object)
         chat_history_test.print_chat_history()
 
-        print("\nTesting clearing chat history:")
+        print("\nTesting clear_history method:")
         chat_history.clear_history()
         chat_history.print_chat_history()
+
+        print("\nChat History: all tests passed successfully.")
 
     except Exception as e:
         print("Unexpected error: ", e)
