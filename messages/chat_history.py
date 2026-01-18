@@ -1,5 +1,6 @@
 from typing import TypeVar, Mapping, Iterable, Type, Tuple
 from .message import BaseMessage, SystemMessage, HumanMessage, AIMessage, ToolMessage
+import json
 
 ParamsT = TypeVar("ParamsT", bound=Mapping)
 MessageT = TypeVar("MessageT", AIMessage, SystemError, ToolMessage, HumanMessage)
@@ -12,11 +13,13 @@ class ChatHistory():
         self.max_chat_length = self.params.get("max_chat_length", 50)
         self.preserve_sys_msg = self.params.get("preserve_sys_message", True)
 
+
     def _reorg_chat_memory(self) -> None:
+        """Keeps system message as the first message in the array while adding new messages and ensuring a maximum number of messages."""
         sys_messages_list = [msg for msg in self.messages if isinstance(msg, SystemMessage)]
         contains_sys_msg = len(sys_messages_list) > 0
         n_msgs_to_keep = self.max_chat_length if not contains_sys_msg else self.max_chat_length - 1
-        sys_message = sys_messages_list[0] if contains_sys_msg else None
+        sys_message = sys_messages_list[-1] if contains_sys_msg else None
         most_recent_messages = [msg for msg in self.messages if not isinstance(msg, SystemMessage)][-n_msgs_to_keep:]
 
         if contains_sys_msg:
@@ -34,7 +37,6 @@ class ChatHistory():
                 if not isinstance(msg, BaseMessage):
                     raise TypeError("All items must extend BaseMessage.")
                 self.messages.append(msg)
-                print(msg)
         # Case 3: Invalid input.
         else:
             raise TypeError("Message must be a BaseMessage or an iterable of BaseMessage.")
@@ -42,6 +44,35 @@ class ChatHistory():
 
     def get_messages_by_type(self, type: Type[MessageT] | Tuple[Type[MessageT], ...]) -> Iterable[BaseMessage]:
         return [x for x in self.messages if isinstance(x, type)]
+    
+    def clear_history(self) -> None:
+        self.messages = [msg for msg in self.messages if isinstance(msg, SystemMessage)]
+
+    def to_prompt_format(self) -> None:
+        return [msg.to_prompt_format() for msg in self.messages]
+    
+    def to_json(self) -> str:
+        json_obj = {
+            "max_chat_length": self.max_chat_length,
+            "preserve_sys_msg": self.preserve_sys_msg,
+            "messages": [msg.to_json() for msg in self.messages]
+        }
+
+        return json.dumps(json_obj)
+    
+    def from_json(self, json_obj: str):
+        chat_history_json = json.loads(json_obj)
+
+        self.max_chat_length = chat_history_json.get("max_chat_length", 50)
+        self.preserve_sys_msg = chat_history_json.get("preserve_sys_message", True)
+        messages_json = chat_history_json.get("messages", [])
+
+        for msg in messages_json:
+            self.add_message(BaseMessage.from_json(msg))
+
+    def print_chat_history(self) -> None:
+        for msg in self.messages:
+            print(msg)
     
 def testing():
     try:
@@ -52,6 +83,23 @@ def testing():
 
         chat_history = ChatHistory()
         chat_history.add_message([human_msg, ai_msg, system_msg, tool_msg])
+        chat_history.print_chat_history()
+
+        print("\nTesting prompt chat format:")
+        print(chat_history.to_prompt_format())
+
+        print("\nTesting to_json function:")
+        json_object = chat_history.to_json()
+        print(json_object)
+
+        print("\nTesting from_json function:")
+        chat_history_test = ChatHistory()
+        chat_history_test.from_json(json_object)
+        chat_history_test.print_chat_history()
+
+        print("\nTesting clearing chat history:")
+        chat_history.clear_history()
+        chat_history.print_chat_history()
 
     except Exception as e:
         print("Unexpected error: ", e)

@@ -29,12 +29,13 @@ class BaseMessage():
     def to_json(self) -> dict:
         return {
             "id": self.id,
-            "timestamp": self.message_timestamp,
-            "type": self.type,
+            "timestamp": self.message_timestamp.isoformat(),
+            "type": self.get_type(),
             "message_text": self.message_text
-        } | self.params
+        } | {"params": self.params}
     
-    def from_json(self, json_data):
+    @classmethod
+    def from_json(cls, json_data: dict):
         if not isinstance(json_data, dict):
             raise ValueError("Expected a dictionary for json_data.")
 
@@ -49,7 +50,7 @@ class BaseMessage():
 
         message = message_class(json_data["message_text"], json_data.get("params", {}))
         message.id = json_data["id"]
-        message.timestamp = json_data["timestamp"]
+        message.timestamp = datetime.fromisoformat(json_data["timestamp"])
 
         return message
     
@@ -63,7 +64,7 @@ class BaseMessage():
 class AIMessage(BaseMessage):
     def __init__(self, message_text: str, params: dict = None) -> None:
         super().__init__(message_text, params)
-        self.tool_calls = [] if not params["tool_calls"] else params["tool_calls"]
+        self.tool_calls = params.get("tool_calls", [])
 
     def get_type(self) -> str:
         return "ai"
