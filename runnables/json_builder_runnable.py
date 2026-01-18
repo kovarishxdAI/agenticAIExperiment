@@ -15,7 +15,10 @@ class JsonBuilderRunnable(Runnable[Any, str, ConfigT]):
         self.name = self.__class__.__name__
 
     async def _call(self, input: Any, config: ConfigT | None = None) -> str:
-        payload = {"result": input}
+        payload = {
+            "result": input, 
+            "config": config
+        }
         return json.dumps(payload,default=default_serializer)
     
 

@@ -13,7 +13,7 @@ class JsonParserRunnable(Runnable[str, Mapping, ConfigT]):
         super().__init__()
         self.name = self.__class__.__name__
 
-        if not input or not isinstance(options, str):
+        if not options or not isinstance(options, str):
             self.error_message = None
             self.options = None
         else:
@@ -23,13 +23,17 @@ class JsonParserRunnable(Runnable[str, Mapping, ConfigT]):
                 raise ValueError(f"It wasn't possible to convert the options parameter into a dictionary. Received {options}.", e)
 
     async def _call(self, input: str, config: ConfigT | None = None) -> Mapping:
-        if not isinstance(input, str) or not input:
+        if not input or not isinstance(input, str):
             return self.options.get("error", None) if self.options else None
         
         try:
             return json.loads(input)
-        except:
-            return self.options.get("error", None) if self.options else None
+        except Exception as e:
+            default_error_msg = self.options.get("error", None) if self.options is not None else None
+            if default_error_msg is not None:
+                raise RuntimeError(default_error_msg)
+
+            return self.options.get("error", None) if self.options else e
 
 
 def testing():

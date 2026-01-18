@@ -31,4 +31,4 @@ def running_tests(testScope):
             chat_history.testing()
 
 if __name__ == "__main__":
-    running_tests("ChatH")
+    running_tests("All")
