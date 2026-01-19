@@ -67,13 +67,13 @@ class Calculator():
     def _create_runnable(self, name: str, inputs: Dict) -> my_runnable.Runnable:
         match name:
             case "add":
-                return addition_runnable.AdditionRunnable(inputs["a"])
+                return addition_runnable.AdditionRunnable(inputs["b"])
             case "subtract":
-                return subtraction_runnable.SubtractionRunnable(inputs["a"])
+                return subtraction_runnable.SubtractionRunnable(inputs["b"])
             case "multiply":
-                return multiplication_runnable.MultiplicationRunnable(inputs["a"])
+                return multiplication_runnable.MultiplicationRunnable(inputs["b"])
             case "divide":
-                return division_runnable.DivisionRunnable(inputs["a"])
+                return division_runnable.DivisionRunnable(inputs["b"])
         raise ValueError(f"Unknown runnable name received: {name}")
     
     def _resolve_inputs(self, raw_inputs):
@@ -112,8 +112,8 @@ def testing():
         atom_plan: AtomPlan = {
             "atoms": [
                 {"id": 1, "kind": "tool", "name": "add", "input": {"a": 7, "b": 15}, "dependsOn": []},
-                {"id": 2, "kind": "tool", "name": "multiply", "input": {"a": 3, "b": "<result_of_1>"}, "dependsOn": [1]},
-                {"id": 3, "kind": "tool", "name": "subtract", "input": {"a": 10, "b": "<result_of_2>"}, "dependsOn": [2]},
+                {"id": 2, "kind": "tool", "name": "multiply", "input": {"a": "<result_of_1>", "b": 3}, "dependsOn": [1]},
+                {"id": 3, "kind": "tool", "name": "subtract", "input": {"a": "<result_of_2>", "b": 10}, "dependsOn": [2]},
                 {"id": 4, "kind": "final", "name": "report", "dependsOn": [3]}
             ]
         }
