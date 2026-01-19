@@ -4,8 +4,8 @@ from .my_runnable import Runnable
 from utils.my_utils import flatten_numbers
 import asyncio
 
-NumberT = ConfigT = TypeVar("NumberT", int, float)
-ConfigT = ConfigT = TypeVar("ConfigT", bound=Mapping)
+NumberT = TypeVar("NumberT", int, float)
+ConfigT = TypeVar("ConfigT", bound=Mapping)
 
 class AdditionRunnable (Runnable[NumberT | Iterable, NumberT, ConfigT]):
     def __init__(self, *values: NumberT | Iterable) -> None:
