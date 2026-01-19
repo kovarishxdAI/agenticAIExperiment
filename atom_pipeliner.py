@@ -1,6 +1,6 @@
 from typing import TypedDict, Literal, Dict, List, Any
-from runnables import json_parser_runnable
-import json
+from runnables import my_runnable, addition_runnable, subtraction_runnable, multiplication_runnable, division_runnable
+import json, asyncio
 
 class Atom(TypedDict):
     id: int
@@ -12,7 +12,7 @@ class Atom(TypedDict):
 class AtomPlan(TypedDict):
     atoms: List[Atom]
 
-class calculator():
+class Calculator():
     def __init__(self, atom_plan_str: str) -> None:
         self.atom_plan_str = atom_plan_str
         try:
@@ -56,27 +56,76 @@ class calculator():
             raise KeyError("Missing 'atoms' key")
         if not isinstance(data["atoms"], list):
             raise TypeError("'atoms' must be a list")
+        
         validated_atoms = [self._validate_atom(a) for a in data["atoms"]]
+
+        if validated_atoms[-1]["kind"] != "final":
+            raise RuntimeError("No final atom found")
+
         return {"atoms": validated_atoms}
+    
+    def _create_runnable(self, name: str, inputs: Dict) -> my_runnable.Runnable:
+        match name:
+            case "add":
+                return addition_runnable.AdditionRunnable(inputs["a"])
+            case "subtract":
+                return subtraction_runnable.SubtractionRunnable(inputs["a"])
+            case "multiply":
+                return multiplication_runnable.MultiplicationRunnable(inputs["a"])
+            case "divide":
+                return division_runnable.DivisionRunnable(inputs["a"])
+        raise ValueError(f"Unknown runnable name received: {name}")
+    
+    def _resolve_inputs(self, raw_inputs):
+        resolved = {}
+        for key, value in raw_inputs.items():
+            resolved[key] = 0 if isinstance(value, str) and value.startswith("<result_of_") else value
+        return resolved
+
+    async def build_and_run_pipeline(self) -> Any:
+        results: Dict[int, Any] = { }
+        pipeline: my_runnable.Runnable | None = None
+
+        for atom in self.atom_plan["atoms"]:
+            # Returns the final result
+            if atom["kind"] == "final":
+                return await pipeline.invoke(self.atom_plan["atoms"][0]["input"]["b"])
+
+            resolved_inputs = self._resolve_inputs(atom["input"])
+            runnable = self._create_runnable(atom["name"], resolved_inputs)
+
+            if pipeline is None:
+                pipeline = runnable
+            else:
+                pipeline = pipeline.pipe(runnable)
+        
+        raise RuntimeError("No final atom found")
 
     def __str__(self) -> str:
         return self.atom_plan_str
 
 def testing():
-    atom_plan: AtomPlan = {
-        "atoms": [
-            {"id": 1, "kind": "tool", "name": "add", "input": {"a": 15, "b": 7}, "dependsOn": []},
-            {"id": 2, "kind": "tool", "name": "multiply", "input": {"a": "<result_of_1>", "b": 3}, "dependsOn": [1]},
-            {"id": 3, "kind": "tool", "name": "subtract", "input": {"a": "<result_of_2>", "b": 10}, "dependsOn": [2]},
-            {"id": 4, "kind": "final", "name": "report", "dependsOn": [3]}
-        ]
-    }
+    print('Testing Calculator:\n')
 
-    calc = calculator(json.dumps(atom_plan))
+    try:
+        print('Test 1: Linear dependency.')
+        atom_plan: AtomPlan = {
+            "atoms": [
+                {"id": 1, "kind": "tool", "name": "add", "input": {"a": 7, "b": 15}, "dependsOn": []},
+                {"id": 2, "kind": "tool", "name": "multiply", "input": {"a": 3, "b": "<result_of_1>"}, "dependsOn": [1]},
+                {"id": 3, "kind": "tool", "name": "subtract", "input": {"a": 10, "b": "<result_of_2>"}, "dependsOn": [2]},
+                {"id": 4, "kind": "final", "name": "report", "dependsOn": [3]}
+            ]
+        }
 
-    print(calc)
-    print(type(calc.atom_plan))
-    print(calc.atom_plan)
+        calc = Calculator(json.dumps(atom_plan))
+        end_result = asyncio.run(calc.build_and_run_pipeline())
+        print(f'Test 1 passed. Passed (15 + 7) * 3 - 10 and received {end_result}.\n')
+
+        print('Yeap, pretty much all Calculator tests passed.')
+
+    except Exception as e:
+        raise RuntimeError(f'Calculator tests failed with error {e}')
 
 if __name__ == "__main__":
     testing()
