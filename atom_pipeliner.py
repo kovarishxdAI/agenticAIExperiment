@@ -74,7 +74,7 @@ class Calculator():
         return {"atoms": validated_atoms}
     
     ## =================//===========//====================
-    ## First attempt for a linear execution plan.
+    ## Execution of linear plans.
     ## Works if no atom has a parameter "b" depending on
     ## the result of a previous atom.
     ## =================//===========//====================
@@ -116,9 +116,9 @@ class Calculator():
     ## =================//===========//====================
     
     ## =================//===========//====================
-    ## First attempt for a non-linear execution plan.
+    ## Execution of non-linear plans.
     ## Works well, but does not use pipe method, as every 
-    ## node is running its own runnable without pielines.
+    ## atom is running its own runnable without pipelines.
     ## =================//===========//====================
     def _create_deferrable_runnable(self, name: str) -> my_runnable.Runnable:
         match name:
@@ -238,19 +238,22 @@ def testing():
                 { "id": 1, "kind": "tool", "name": "add", "input": {"a": 2, "b": 10}, "dependsOn": [] },
                 { "id": 2, "kind": "tool", "name": "add", "input": {"a": "<result_of_1>", "b": 4}, "dependsOn": [1] },
                 { "id": 3, "kind": "tool", "name": "add", "input": {"a": "<result_of_2>", "b": 2}, "dependsOn": [2] },
-
                 { "id": 4, "kind": "tool", "name": "divide", "input": {"a": 4, "b": 5}, "dependsOn": [] },
                 { "id": 5, "kind": "tool", "name": "subtract", "input": {"a": 8, "b": "<result_of_4>"}, "dependsOn": [4] },
-
-                {
-                "id": 6,
-                "kind": "tool",
-                "name": "multiply",
-                "input": {"a": "<result_of_3>", "b": "<result_of_5>"},
-                "dependsOn": [3, 5]
-                },
-
+                { "id": 6, "kind": "tool", "name": "multiply", "input": {"a": "<result_of_3>", "b": "<result_of_5>"}, "dependsOn": [3, 5] },
                 { "id": 7, "kind": "final", "name": "report", "dependsOn": [6] }
+            ]
+        }
+
+        scrambled_non_linear_atom_plan: AtomPlan = {
+            "atoms": [
+                { "id": 1, "kind": "tool", "name": "add", "input": {"a": 2, "b": 10}, "dependsOn": [] },
+                { "id": 2, "kind": "tool", "name": "add", "input": {"a": "<result_of_1>", "b": 4}, "dependsOn": [1] },
+                { "id": 3, "kind": "tool", "name": "add", "input": {"a": "<result_of_2>", "b": 2}, "dependsOn": [2] },
+                { "id": 4, "kind": "tool", "name": "multiply", "input": {"a": "<result_of_3>", "b": "<result_of_6>"}, "dependsOn": [3, 6] },
+                { "id": 5, "kind": "tool", "name": "divide", "input": {"a": 4, "b": 5}, "dependsOn": [] },
+                { "id": 6, "kind": "tool", "name": "subtract", "input": {"a": 8, "b": "<result_of_5>"}, "dependsOn": [5] },
+                { "id": 7, "kind": "final", "name": "report", "dependsOn": [4] }
             ]
         }
 
@@ -268,6 +271,11 @@ def testing():
         non_linear_calc_non_linear_plan = Calculator(json.dumps(non_linear_atom_plan))
         end_result = asyncio.run(non_linear_calc_non_linear_plan.execute_plan())
         print(f'Test 3 passed. Passed (2 + 10 + 4 + 2) * (8 - 4 / 5), expected 129.6, received {end_result}.\n')
+
+        print('Test 4: Non-linear calculator and non-linear, scrambled plan.')
+        non_linear_calc_non_linear_plan = Calculator(json.dumps(scrambled_non_linear_atom_plan))
+        end_result = asyncio.run(non_linear_calc_non_linear_plan.execute_plan())
+        print(f'Test 4 passed. Passed (2 + 10 + 4 + 2) * (8 - 4 / 5), expected 129.6, received {end_result}.\n')
 
         print('Yeap, pretty much all Calculator tests passed.')
 
