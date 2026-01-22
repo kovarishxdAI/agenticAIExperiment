@@ -117,8 +117,8 @@ class Calculator():
     
     ## =================//===========//====================
     ## First attempt for a non-linear execution plan.
-    ## Works well, but it is wasteful, as every node
-    ## is running, not just those need due to dependencies.
+    ## Works well, but does not use pipe method, as every 
+    ## node is running its own runnable without pielines.
     ## =================//===========//====================
     def _create_deferrable_runnable(self, name: str) -> my_runnable.Runnable:
         match name:
