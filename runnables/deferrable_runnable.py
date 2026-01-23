@@ -1,5 +1,5 @@
 from .my_runnable import Runnable
-from typing import TypeVar, Any, Mapping
+from typing import TypeVar, Any, Mapping, Callable
 
 ConfigT = TypeVar("ConfigT", bound=Mapping)
 
@@ -11,12 +11,12 @@ ConfigT = TypeVar("ConfigT", bound=Mapping)
 # arguments for the constructor when the invoke method is called.
 # ==========================//=======================//==========================
 class DeferredRunnable(Runnable[Any, Any, ConfigT]):
-    def __init__(self, factory, get_constructor_args: Any) -> None:
+    def __init__(self, factory, get_constructor_args: Callable | None) -> None:
         self._factory = factory
         self._get_constructor_args = get_constructor_args
         self.name = self.__class__.__name__
 
-    async def _call(self, input, config: ConfigT | None = None):
-        b = self._get_constructor_args(config)
-        runnable = self._factory(b)
+    async def _call(self, input: Any, config: ConfigT | None = None) -> Any:
+        constructor_args = self._get_constructor_args(config)
+        runnable = self._factory(constructor_args)
         return await runnable.invoke(input)
