@@ -158,7 +158,7 @@ class Calculator():
         return sorted_atoms
     
     async def execute_plan(self) -> Any:
-        nodes = self.build_execution_plan()
+        nodes = self._build_execution_plan()
         results: dict[int, Any] = {}
 
         sorted_atoms = self._topological_sort()
