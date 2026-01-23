@@ -21,6 +21,15 @@ class ExecutionNode:
         self.runnable = runnable
         self.get_input = get_input
 
+## ========================================//===========//========================================
+## Execution of linear or non-linear plans.
+## Works well, but breaks with the Runnable framework, as downstream results require knowledge
+## of upstream results at construction time, which would require either an external memory or
+## passing results in the config of each invoke, which would also require bringing too much
+## knowledge of the pipeline itself to individual Runnables.
+## This class can be simplified by removing runnables, which do not confer any advantage to the
+## solution.
+## ========================================//===========//========================================
 class Calculator():
     def __init__(self, atom_plan_str: str) -> None:
         self.atom_plan_str = atom_plan_str
@@ -73,53 +82,6 @@ class Calculator():
 
         return {"atoms": validated_atoms}
     
-    ## =================//===========//====================
-    ## Execution of linear plans.
-    ## Works if no atom has a parameter "b" depending on
-    ## the result of a previous atom.
-    ## =================//===========//====================
-    def _create_runnable(self, name: str, inputs: Dict) -> my_runnable.Runnable:
-        match name:
-            case "add":
-                return addition_runnable.AdditionRunnable(inputs.get("b"))
-            case "subtract":
-                return subtraction_runnable.SubtractionRunnable(inputs.get("b"))
-            case "multiply":
-                return multiplication_runnable.MultiplicationRunnable(inputs.get("b"))
-            case "divide":
-                return division_runnable.DivisionRunnable(inputs.get("b"))
-        raise ValueError(f"Unknown runnable name received: {name}")
-    
-    def _resolve_inputs(self, raw_inputs):
-        resolved = {}
-        for key, value in raw_inputs.items():
-            resolved[key] = 0 if isinstance(value, str) and value.startswith("<result_of_") else value
-        return resolved
-
-    async def build_and_run_pipeline(self) -> Any:
-        pipeline: my_runnable.Runnable | None = None
-
-        for atom in self.atom_plan["atoms"]:
-            if atom["kind"] == "final":
-                return await pipeline.invoke(self.atom_plan["atoms"][0]["input"]["a"])
-
-            resolved_inputs = self._resolve_inputs(atom["input"])
-            runnable = self._create_runnable(atom["name"], resolved_inputs)
-
-            if pipeline is None:
-                pipeline = runnable
-            else:
-                pipeline = pipeline.pipe(runnable)
-        
-        raise RuntimeError("No final atom found")
-    
-    ## =================//===========//====================
-    
-    ## =================//===========//====================
-    ## Execution of non-linear plans.
-    ## Works well, but does not use pipe method, as every 
-    ## atom is running its own runnable without pipelines.
-    ## =================//===========//====================
     def _create_deferrable_runnable(self, name: str) -> my_runnable.Runnable:
         match name:
             case "add":
@@ -132,7 +94,7 @@ class Calculator():
                 return lambda b: division_runnable.DivisionRunnable(b)
         raise ValueError(f"Unknown runnable name received: {name}")
     
-    def _resolve_inputs_non_linear(self, raw_inputs: Dict[str, Any], results: Dict[int, Any]) -> Dict[str, Any]:
+    def _resolve_inputs(self, raw_inputs: Dict[str, Any], results: Dict[int, Any]) -> Dict[str, Any]:
         resolved = {}
         for key, value in raw_inputs.items():
             if isinstance(value, str) and value.startswith("<result_of_"):
@@ -142,7 +104,7 @@ class Calculator():
                 resolved[key] = value
         return resolved
     
-    def build_execution_plan(self) -> dict[int, ExecutionNode]:
+    def _build_execution_plan(self) -> dict[int, ExecutionNode]:
         nodes: dict[int, ExecutionNode] = {}
 
         for atom in self.atom_plan["atoms"]:
@@ -153,13 +115,13 @@ class Calculator():
 
             def make_get_a(raw_inputs):
                 def get_a(results):
-                    resolved = self._resolve_inputs_non_linear(raw_inputs, results)
+                    resolved = self._resolve_inputs(raw_inputs, results)
                     return resolved["a"]
                 return get_a
 
             def make_get_b(raw_inputs):
                 def get_b(results):
-                    resolved = self._resolve_inputs_non_linear(raw_inputs, results)
+                    resolved = self._resolve_inputs(raw_inputs, results)
                     return resolved["b"]
                 return get_b
 
@@ -206,16 +168,10 @@ class Calculator():
                 return results[atom["dependsOn"][0]]
 
             node = nodes[atom["id"]]
-            #print("Results pre-calc:", results)
-            #print("Node:", atom["name"])
             input_value = node.get_input(results)
-            #print("Input value:", input_value)
             results[atom["id"]] = await node.runnable.invoke(input_value, results)
-            #print("Results post-calc:", results)
 
         raise RuntimeError("No final atom found")
-
-    ## =================//===========//====================
 
     def __str__(self) -> str:
         return self.atom_plan_str
@@ -257,30 +213,30 @@ def testing():
             ]
         }
 
-        print('Test 1: Linear calculator and linear plan.')
+        print('Test 1: Linear plan.')
         calc = Calculator(json.dumps(atom_plan))
-        end_result = asyncio.run(calc.build_and_run_pipeline())
-        print(f'Test 1 passed. Passed (15 + 7) * 3 - 10 and received {end_result}.\n')
+        end_result = asyncio.run(calc.execute_plan())
+        assert end_result == 56, f"Expected 56, got {end_result}."
+        print(f'Test 1 passed. Passed (15 + 7) * 3 - 10, expected 56, and received {end_result}.\n')
 
-        print('Test 2: Non-linear calculator, but linear plan.')
-        non_linear_calc_linear_plan = Calculator(json.dumps(atom_plan))
-        end_result = asyncio.run(non_linear_calc_linear_plan.execute_plan())
-        print(f'Test 2 passed. Passed (15 + 7) * 3 - 10 and received {end_result}.\n')
-
-        print('Test 3: Non-linear calculator and non-linear plan.')
+        print('Test 2: Non-linear, but ordered plan.')
         non_linear_calc_non_linear_plan = Calculator(json.dumps(non_linear_atom_plan))
         end_result = asyncio.run(non_linear_calc_non_linear_plan.execute_plan())
-        print(f'Test 3 passed. Passed (2 + 10 + 4 + 2) * (8 - 4 / 5), expected 129.6, received {end_result}.\n')
+        assert end_result == 129.6, f"Expected 129.6, got {end_result}."
+        print(f'Test 2 passed. Passed (2 + 10 + 4 + 2) * (8 - 4 / 5), expected 129.6, received {end_result}.\n')
 
-        print('Test 4: Non-linear calculator and non-linear, scrambled plan.')
+        print('Test 3: Non-linear, unordered plan.')
         non_linear_calc_non_linear_plan = Calculator(json.dumps(scrambled_non_linear_atom_plan))
         end_result = asyncio.run(non_linear_calc_non_linear_plan.execute_plan())
-        print(f'Test 4 passed. Passed (2 + 10 + 4 + 2) * (8 - 4 / 5), expected 129.6, received {end_result}.\n')
+        assert end_result == 129.6, f"Expected 129.6, got {end_result}."
+        print(f'Test 3 passed. Passed (2 + 10 + 4 + 2) * (8 - 4 / 5), expected 129.6, received {end_result}.\n')
 
         print('Yeap, pretty much all Calculator tests passed.')
 
+    except AssertionError as e:
+        raise RuntimeError(f'Test failed with error: {e}')
     except Exception as e:
-        raise RuntimeError(f'Calculator tests failed with error {e}')
+        raise RuntimeError(f'Calculator tests failed with error: {e}')
 
 if __name__ == "__main__":
     testing()
