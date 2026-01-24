@@ -30,8 +30,8 @@ class BaseMessage():
         return {
             "id": self.id,
             "timestamp": self.message_timestamp.isoformat(),
-            "type": self.get_type(),
-            "message_text": self.message_text
+            "role": self.get_type(),
+            "content": self.message_text
         } | {"params": self.params}
     
     @classmethod
@@ -39,16 +39,16 @@ class BaseMessage():
         if not isinstance(json_data, dict):
             raise ValueError("Expected a dictionary for json_data.")
 
-        required_fields = ["type", "message_text", "id", "timestamp"]
+        required_fields = ["role", "content", "id", "timestamp"]
         for field in required_fields:
             if field not in json_data:
                 raise ValueError(f"Missing required field: {field}.")
 
-        message_class = MESSAGE_TYPES.get(json_data["type"])
+        message_class = MESSAGE_TYPES.get(json_data["role"])
         if not message_class:
-            raise ValueError(f"Unknown message type: {json_data['type']}.")
+            raise ValueError(f"Unknown message type: {json_data['role']}.")
 
-        message = message_class(json_data["message_text"], json_data.get("params", {}))
+        message = message_class(json_data["content"], json_data.get("params", {}))
         message.id = json_data["id"]
         message.timestamp = datetime.fromisoformat(json_data["timestamp"])
 
@@ -64,13 +64,13 @@ class BaseMessage():
 class AIMessage(BaseMessage):
     def __init__(self, message_text: str, params: dict = None) -> None:
         super().__init__(message_text, params)
-        self.tool_calls = params.get("tool_calls", [])
+        self.tool_calls = params.get("tool_calls", []) if params else []
 
     def get_type(self) -> str:
         return "ai"
     
     def to_prompt_format(self) -> dict:
-        formatted = { "role": "assistant", "message_text": self.message_text }
+        formatted = { "role": "assistant", "content": self.message_text }
         if len(self.tool_calls) > 0:
             formatted["tool_calls"] = self.tool_calls
         return formatted
@@ -86,10 +86,10 @@ class HumanMessage(BaseMessage):
         super().__init__(message_text, params)
 
     def get_type(self) -> str:
-        return "human"
+        return "user"
     
     def to_prompt_format(self) -> dict:
-        return { "role": "user", "message_text": self.message_text }
+        return { "role": "user", "content": self.message_text }
 
 class SystemMessage(BaseMessage):
     def __init__(self, message_text: str, params: dict = None) -> None:
@@ -99,7 +99,7 @@ class SystemMessage(BaseMessage):
         return "system"
     
     def to_prompt_format(self) -> dict:
-        return { "role": "system", "message_text": self.message_text }
+        return { "role": "system", "content": self.message_text }
     
 class ToolMessage(BaseMessage):
     def __init__(self, message_text: str, tool_call_id: str, params: dict = None) -> None:
@@ -110,12 +110,12 @@ class ToolMessage(BaseMessage):
         return "tool"
     
     def to_prompt_format(self) -> dict:
-        return { "role": "tool", "message_text": self.message_text }
+        return { "role": "tool", "content": self.message_text }
 
 
 MESSAGE_TYPES = {
   'ai': AIMessage,
-  'human': HumanMessage,
+  'user': HumanMessage,
   'system': SystemMessage,
   'tool': ToolMessage
 }

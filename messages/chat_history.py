@@ -58,10 +58,10 @@ class ChatHistory():
             "messages": [msg.to_json() for msg in self.messages]
         }
 
-        return json.dumps(json_obj)
+        return json_obj
     
-    def from_json(self, json_obj: str):
-        chat_history_json = json.loads(json_obj)
+    def from_json(self, json_obj: str | Mapping):
+        chat_history_json = json.loads(json_obj) if isinstance(json_obj, str) else json_obj
 
         self.max_chat_length = chat_history_json.get("max_chat_length", 50)
         self.preserve_sys_msg = chat_history_json.get("preserve_sys_message", True)
