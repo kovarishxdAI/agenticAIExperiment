@@ -8,7 +8,7 @@ from calculator import Calculator
 
 
 class ChatRunner():
-    def __init__(self):
+    def __init__(self) -> None:
         self.MODEL_PATH = "models/Qwen3-1.7B-Q8.gguf"
         self.llm = Llama(
             model_path=self.MODEL_PATH,
@@ -38,7 +38,7 @@ class ChatRunner():
         start_infer = time.time()
         output = self.llm.create_chat_completion(
             messages = prompt,
-            max_tokens=2048,
+            max_tokens=4092,
             temperature=0.7,
             top_p=0.8,
             top_k=20
@@ -47,6 +47,7 @@ class ChatRunner():
         return output, infer_time
     
     def process_messages(self, messages: List[BaseMessage] | None) -> None:
+        """Sequentially processes messages by appending one message at a time, along with LLM answers."""
         message_queue = deque(messages)
 
         while message_queue:
@@ -159,8 +160,10 @@ def test_three(chat:ChatRunner) -> None:
         - Empty input: {"input": {}}
         - Missing parameters, such as a missing b parameter: {"input": {"a": "<result_of_1>"}}
         - Combined operations: "add then multiply" → must be TWO atoms
+        - Missing final atom, or <calculator> or </calculator> tags
+        - Adding a key not provided in the example above, such as "result"
         - Final atom with input: {"kind": "final", "input": {"a": 5}} is INVALID
-        - Missing <calculator> or </calculator> tags.
+        - Adding comments to the plan, such as //8 - 4/5
 
         Available tools: add, subtract, multiply, divide
         - Each tool requires: {"a": <number or reference>, "b": <number or reference>}
@@ -168,7 +171,7 @@ def test_three(chat:ChatRunner) -> None:
         - dependsOn: array of atom IDs that must complete first
 
         Always extract the actual numbers from the question and put them in the input fields! Never combine operations or invent calculations in final atoms.""")
-    first_user_prompt = HumanMessage("What's (2 + 10 + 4 + 2) * (8 - 4 / 5)?")
+    first_user_prompt = HumanMessage("What's (2 + 10 + 4 + 2) * (8 - 4 / 5) - (20 + 9.6)?")
 
     chat.erase_chat_history()
     chat.process_messages([system_prompt, first_user_prompt])
