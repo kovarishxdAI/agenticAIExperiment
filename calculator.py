@@ -1,4 +1,4 @@
-from typing import TypedDict, Literal, Dict, List, Any, Callable
+from typing import TypedDict, Literal, Dict, List, Any
 from runnables import my_runnable, addition_runnable, subtraction_runnable, multiplication_runnable, division_runnable, deferrable_runnable
 import json, asyncio
 
@@ -12,23 +12,8 @@ class Atom(TypedDict):
 class AtomPlan(TypedDict):
     atoms: List[Atom]
 
-class ExecutionNode:
-    def __init__(
-        self,
-        runnable: my_runnable.Runnable,
-        get_input: Callable[[dict[int, Any]], Any],
-    ):
-        self.runnable = runnable
-        self.get_input = get_input
-
 ## ========================================//===========//========================================
 ## Execution of linear or non-linear plans.
-## Works well, but breaks with the Runnable framework, as downstream results require knowledge
-## of upstream results at construction time, which would require either an external memory or
-## passing results in the config of each invoke, which would also require bringing too much
-## knowledge of the pipeline itself to individual Runnables.
-## This class can be simplified by removing runnables, which do not confer any advantage to the
-## solution.
 ## ========================================//===========//========================================
 class Calculator():
     def __init__(self, atom_plan_str: str) -> None:
@@ -82,7 +67,7 @@ class Calculator():
 
         return {"atoms": validated_atoms}
     
-    def _create_deferrable_runnable(self, name: str) -> my_runnable.Runnable:
+    def _get_factory(self, name: str) -> my_runnable.Runnable:
         match name:
             case "add":
                 return lambda b: addition_runnable.AdditionRunnable(b)
@@ -104,10 +89,29 @@ class Calculator():
                 resolved[key] = value
         return resolved
     
-    def _build_execution_plan(self) -> dict[int, ExecutionNode]:
-        nodes: dict[int, ExecutionNode] = {}
+    def _topological_sort(self):
+        atoms = {atom["id"]: atom for atom in self.atom_plan["atoms"]}
+        visited = set()
+        sorted_atoms: AtomPlan = []
 
-        for atom in self.atom_plan["atoms"]:
+        def visit(atom_id):
+            if atom_id in visited:
+                return
+            for dep_id in atoms[atom_id].get("dependsOn", []):
+                visit(dep_id)
+            visited.add(atom_id)
+            sorted_atoms.append(atoms[atom_id])
+
+        for atom_id in atoms:
+            visit(atom_id)
+
+        return sorted_atoms
+    
+    def _build_execution_plan(self) -> my_runnable.Runnable:
+        pipeline: my_runnable.Runnable = []
+        self.sorted_atoms = self._topological_sort()
+
+        for atom in self.sorted_atoms:
             if atom["kind"] == "final":
                 continue
             
@@ -125,53 +129,25 @@ class Calculator():
                     return resolved["b"]
                 return get_b
 
-            factory = self._create_deferrable_runnable(atom["name"])
+            factory = self._get_factory(atom["name"])
 
             runnable = deferrable_runnable.DeferredRunnable(
                 factory = factory,
-                get_constructor_args = make_get_b(raw_inputs)
+                get_constructor_arg = make_get_b(raw_inputs),
+                get_invoke_arg = make_get_a(raw_inputs),
+                config = { "signature": atom["id"] }
             )
 
-            nodes[atom["id"]] = ExecutionNode(
-                runnable = runnable,
-                get_input = make_get_a(raw_inputs),
-            )
+            pipeline = pipeline.pipe(runnable) if pipeline else runnable
 
-        return nodes
-    
-    def _topological_sort(self):
-        atoms = {atom["id"]: atom for atom in self.atom_plan["atoms"]}
-        visited = set()
-        sorted_atoms = []
-
-        def visit(atom_id):
-            if atom_id in visited:
-                return
-            for dep_id in atoms[atom_id].get("dependsOn", []):
-                visit(dep_id)
-            visited.add(atom_id)
-            sorted_atoms.append(atoms[atom_id])
-
-        for atom_id in atoms:
-            visit(atom_id)
-
-        return sorted_atoms
+        return pipeline
     
     async def execute_plan(self) -> Any:
-        nodes = self._build_execution_plan()
-        results: dict[int, Any] = {}
 
-        sorted_atoms = self._topological_sort()
+        pipeline = self._build_execution_plan()
+        output = await pipeline.invoke(1, {})
 
-        for atom in sorted_atoms:
-            if atom["kind"] == "final":
-                return results[atom["dependsOn"][0]]
-
-            node = nodes[atom["id"]]
-            input_value = node.get_input(results)
-            results[atom["id"]] = await node.runnable.invoke(input_value, results)
-
-        raise RuntimeError("No final atom found")
+        return output
 
     def __str__(self) -> str:
         return self.atom_plan_str

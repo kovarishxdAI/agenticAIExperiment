@@ -8,8 +8,8 @@ NumberT = TypeVar("NumberT", int, float)
 ConfigT = TypeVar("ConfigT", bound=Mapping)
 
 class AdditionRunnable (Runnable[NumberT | Iterable, NumberT, ConfigT]):
-    def __init__(self, *values: NumberT | Iterable) -> None:
-        super().__init__()
+    def __init__(self, *values: NumberT | Iterable, config: ConfigT | None = None) -> None:
+        super().__init__(config)
         self.name = self.__class__.__name__
         self.values = flatten_numbers(values)
 
@@ -32,7 +32,7 @@ def testing():
         test2 = AdditionRunnable([1, 2.3, 3])
         results2 = asyncio.run(test2.invoke([5]))
         assert results2 == 11.3, f"Expected 11.3, got {results2}"
-        print(f"Passed [1, 2, 3] in constructor and [5] in invoke, got {results2}. Test 2 passed.\n")
+        print(f"Passed [1, 2.3, 3] in constructor and [5] in invoke, got {results2}. Test 2 passed.\n")
 
         print('Test 3: Mix between numeric and iterable inputs, including strings, empty lists, and lists of lists.')
         test3 = AdditionRunnable([1, 2, [3, "c", []]])

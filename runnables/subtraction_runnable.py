@@ -8,8 +8,8 @@ NumberT = TypeVar("NumberT", int, float)
 ConfigT = TypeVar("ConfigT", bound=Mapping)
 
 class SubtractionRunnable(Runnable[NumberT, NumberT, ConfigT]):
-    def __init__(self, input: NumberT) -> None:
-        super().__init__()
+    def __init__(self, input: NumberT, config: ConfigT | None = None) -> None:
+        super().__init__(config)
         self.name = self.__class__.__name__
         self.value = input
 

@@ -11,8 +11,9 @@ ConfigT = TypeVar("ConfigT", bound=Mapping)
 
 
 class Runnable(Generic[InputT, OutputT, ConfigT]):
-    def __init__(self) -> None:
+    def __init__(self, config: ConfigT | None = None) -> None:
         self.name = self.__class__.__name__
+        self.signature = config.get("signature") if config else None
     
     def __str__(self) -> str:
         return self.name
@@ -51,20 +52,24 @@ class RunnableSequence(Runnable[InputT, OutputT, ConfigT], Generic[InputT, Outpu
         return " | ".join(str(runnableName) for runnableName in self.runnables)
 
     async def _call(self, input: InputT, config: ConfigT | None = None) -> OutputT:
-
+        local_config = config if config else {}
         output: InputT | OutputT = input
         for runnable in self.runnables:
-            output = await runnable.invoke(output, config)
+            output = await runnable.invoke(output, local_config)
+            if runnable.signature is not None:
+                local_config = local_config | { runnable.signature: output }
 
         return output
     
     async def _stream(self, input, config: ConfigT | None = None) -> AsyncGenerator[OutputT, None]:
-
+        local_config = config if config else {}
         output: InputT | OutputT = input
         for runnable in self.runnables[:-1]:
-            output = await runnable.invoke(output, config)
+            output = await runnable.invoke(output, local_config)
+            if self.signature is not None:
+                local_config = local_config | { runnable.signature: output }
         
-        async for fragment in self.runnables[-1].stream(output, config):
+        async for fragment in self.runnables[-1].stream(output, local_config):
             yield fragment
 
     def pipe(self, newRunnable: Runnable[OutputT, MidT, ConfigT]) -> RunnableSequence[InputT, MidT, ConfigT]:

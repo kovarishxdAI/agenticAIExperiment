@@ -9,31 +9,21 @@ ConfigT = TypeVar("ConfigT", bound=Mapping)
 
 
 class JsonParserRunnable(Runnable[str, Mapping, ConfigT]):
-    def __init__(self, options: ConfigT | None= None) -> None:
-        super().__init__()
+    def __init__(self, config: ConfigT | None = None) -> None:
+        super().__init__(config)
         self.name = self.__class__.__name__
-
-        if not options or not isinstance(options, str):
-            self.error_message = None
-            self.options = None
-        else:
-            try:
-                self.options = json.loads(options)
-            except Exception as e:
-                raise ValueError(f"It wasn't possible to convert the options parameter into a dictionary. Received {options}.", e)
+        self.error = config.get("error") if config else None
 
     async def _call(self, input: str, config: ConfigT | None = None) -> Mapping:
         if not input or not isinstance(input, str):
-            return self.options.get("error", None) if self.options else None
+            return self.error
         
         try:
             return json.loads(input)
         except Exception as e:
-            default_error_msg = self.options.get("error", None) if self.options is not None else None
-            if default_error_msg is not None:
-                raise RuntimeError(default_error_msg)
-
-            return self.options.get("error", None) if self.options else e
+            if self.error is not None:
+                raise RuntimeError(self.error)
+            return e
 
 
 def testing():

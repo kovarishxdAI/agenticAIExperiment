@@ -1,22 +1,34 @@
 from .my_runnable import Runnable
-from typing import TypeVar, Any, Mapping, Callable
+from typing import TypeVar, Any, Mapping, Callable, Dict
 
 ConfigT = TypeVar("ConfigT", bound=Mapping)
 
 # ==========================//=======================//==========================
-# When the LLM deals with longer formulae, it might need to defer the creation
-# of a runnable until the result of the previous one is finished. In these cases,
-# if we have an external memory we can draw from (get_b) and instructions to 
-# which runnable to create (factory), it is possible to fetch the necessary
-# arguments for the constructor when the invoke method is called.
+# When the LLM formulates an execution plan where the result of upstream steps 
+# are used as parameters for downstream steps, such as when the calculator deals 
+# with longer formulae, it might need to defer the creationof a runnable until 
+# the result of a previous one is available.
 # ==========================//=======================//==========================
 class DeferredRunnable(Runnable[Any, Any, ConfigT]):
-    def __init__(self, factory, get_constructor_args: Callable | None) -> None:
+    def __init__(
+            self, 
+            factory, 
+            get_constructor_arg: Callable | None, 
+            get_invoke_arg: Callable | None, 
+            config: ConfigT | None = None
+        ) -> None:
+
+        super().__init__(config)
         self._factory = factory
-        self._get_constructor_args = get_constructor_args
+        self._get_constructor_args = get_constructor_arg
+        self.get_invoke_args = get_invoke_arg
         self.name = self.__class__.__name__
 
     async def _call(self, input: Any, config: ConfigT | None = None) -> Any:
         constructor_args = self._get_constructor_args(config)
         runnable = self._factory(constructor_args)
-        return await runnable.invoke(input)
+
+        local_input = self.get_invoke_args(config) if self.get_invoke_args else input
+        output = await runnable.invoke(local_input)
+
+        return output

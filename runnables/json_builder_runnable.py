@@ -10,8 +10,8 @@ ConfigT = TypeVar("ConfigT", bound=Mapping)
 
 
 class JsonBuilderRunnable(Runnable[Any, str, ConfigT]):
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, config: ConfigT | None = None) -> None:
+        super().__init__(config)
         self.name = self.__class__.__name__
 
     async def _call(self, input: Any, config: ConfigT | None = None) -> str:

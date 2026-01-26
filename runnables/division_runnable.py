@@ -7,8 +7,8 @@ NumberT = TypeVar("NumberT", int, float)
 ConfigT = TypeVar("ConfigT", bound=Mapping)
 
 class DivisionRunnable(Runnable[NumberT, NumberT, ConfigT]):
-    def __init__(self, input: NumberT) -> None:
-        super().__init__()
+    def __init__(self, input: NumberT, config: ConfigT | None = None) -> None:
+        super().__init__(config)
         self.value = input
         self.name = self.__class__.__name__
 
@@ -30,7 +30,7 @@ def testing():
         results2 = asyncio.run(test2.invoke(2.3))
         rounded_result2 = round(results2, 2)
         assert rounded_result2 == 0.4, f"Expected 0.4, got {rounded_result2}"
-        print(f"Passed 5.7653423465 in constructor and 2.3 in invoke, got {rounded_result2}. Test 2 passed.\n")
+        print(f"Passed 5.7653423465 in constructor and 2.3 in invoke, rounded to two decimals, got {rounded_result2}. Test 2 passed.\n")
 
         print("Yeap, all DivisionRunnable tests passed.\n")
 
