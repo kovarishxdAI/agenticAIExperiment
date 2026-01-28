@@ -1,4 +1,4 @@
-import time, re, asyncio
+import time, re, asyncio, json
 from collections import deque
 from typing import Mapping, Tuple, List
 from llama_cpp import Llama, ChatCompletionRequestMessage
@@ -46,9 +46,10 @@ class ChatRunner():
         infer_time = time.time() - start_infer
         return output, infer_time
     
-    def process_messages(self, messages: List[BaseMessage] | None) -> None:
+    def process_messages(self, messages: List[BaseMessage] | None, display_agent_thinking: bool = True) -> None:
         """Sequentially processes messages by appending one message at a time, along with LLM answers."""
         message_queue = deque(messages)
+        ai_messages: List[AIMessage] = []
 
         while message_queue:
             msg = message_queue.popleft()
@@ -60,11 +61,15 @@ class ChatRunner():
                 continue
 
             output, infer_time = self.run_prompt(self.chat.to_prompt_format())
-            full_response, response, thinking_text, execution_plan = self.agent_message_parser(output)
+            full_response, answer, thinking_text, execution_plan = self.agent_message_parser(output)
 
             ai_msg = AIMessage(full_response)
             self.chat.add_message(ai_msg)
-            print(ai_msg)
+            if display_agent_thinking:
+                print(ai_msg)
+            else:
+                text = str(ai_msg).replace(thinking_text, "").replace("<think>", "").replace("</think>\n\n", "")
+                print(text)
 
             if execution_plan is not None and execution_plan != "":
                 calc = Calculator(execution_plan)
@@ -73,22 +78,52 @@ class ChatRunner():
                 message_queue.append(new_msg) 
                 self.chat.add_message(new_msg)
 
+        return self.chat.get_messages_by_type(AIMessage)
+
     def erase_chat_history(self) -> None:
         """Erases the chat history."""
         self.chat.clear_history()
 
 
-def test_one(chat: ChatRunner) -> None:
+def test_simple_questions(chat: ChatRunner) -> None:
     print("Test 1: Two consecutive simple questions along with system question.\n")
-    system_prompt = SystemMessage("End your response immediately after providing the answer. Ensure no extra text follows.")
     first_user_prompt = HumanMessage("Explain why the sky is blue in one short paragraph.")
     second_user_prompt = HumanMessage("And during sunset?")
 
-    chat.process_messages([system_prompt, first_user_prompt, second_user_prompt])
+    chat.erase_chat_history()
+    chat.process_messages([first_user_prompt, second_user_prompt])
     print("Test 1 completed successfully.\n")
 
-def test_two(chat:ChatRunner) -> None:
-    print("Test 2: Using Atom of Thought.")
+def test_prompt_chain_pattern(chat: ChatRunner) -> None:
+    """Borrowed from the Agentic Design Patterns book."""
+
+    def prompt_builder(prompt_text: str, params: Mapping) -> None:
+        return HumanMessage(prompt_text.format(**params))
+
+    print("Test 1: Prompt chain to extract data from a short text.\n")
+    text_input = "The new laptop model features a 3.5 GHz octa-core processor, 16GB of RAM, and a 1TB NVMe SSD."
+    first_prompt = "Extract the technical specifications from the following text:\n\n{text_input}"
+    second_prompt = "Transform the following specifications into a JSON object with 'cpu', 'memory', and 'storage' as keys:\n\n{text_input}\n\nAnswer with nothing but the JSON object."
+    prompts = [first_prompt, second_prompt]
+
+    responses = []
+    for prompt in prompts:
+        prompt_msg = prompt_builder(prompt, { "text_input": text_input })
+        
+        chat.erase_chat_history()
+        responses: List[AIMessage] = chat.process_messages([prompt_msg], display_agent_thinking=False)
+
+        text_input = responses[0].answer_text
+
+    try:
+        json_obj = json.loads(responses[0].answer_text)
+    except Exception as e:
+        raise ValueError(f"It wasn't possible to parse the JSON response from the model. Error: {e}.")
+
+    print("Test 1 completed successfully. JSON object was parsed without raising errors.\n")
+
+def test_calculator_simple_math(chat:ChatRunner) -> None:
+    print("Test 2: Calculator using Atom of Thought to resolve a simple formula.")
     system_prompt = SystemMessage("""You are a mathematical planning assistant using Atom of Thought methodology.
 
         CRITICAL RULES:
@@ -131,8 +166,8 @@ def test_two(chat:ChatRunner) -> None:
     chat.process_messages([system_prompt, first_user_prompt])
     print("Test 2 executed.")
 
-def test_three(chat:ChatRunner) -> None:
-    print("Test 3: Using Atom of Thought for a more complex formula.")
+def test_calculator_complex_math(chat:ChatRunner) -> None:
+    print("Test 3: Calculator ysing Atom of Thought for a more complex formula.")
     system_prompt = SystemMessage("""You are a mathematical planning assistant using Atom of Thought methodology.
 
         CRITICAL RULES:
@@ -183,13 +218,16 @@ def testing():
 
     try:
         ## Two consecutive simple questions along with system question.
-        #test_one(chat)
+        #test_simple_questions(chat)
+
+        ## Two consecutive operations.
+        test_prompt_chain_pattern(chat)
 
         ## Using Atom of Thought.
-        #test_two(chat)
+        #test_calculator_simple_math(chat)
 
         ## Using Atom of Thought for a more complex formula.
-        test_three(chat)
+        #test_calculator_complex_math(chat)
 
     except Exception as e:
         print(f'Chat runner failed with unexpected error: ', e)

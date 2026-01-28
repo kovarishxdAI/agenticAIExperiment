@@ -65,6 +65,10 @@ class AIMessage(BaseMessage):
     def __init__(self, message_text: str, params: dict = None) -> None:
         super().__init__(message_text, params)
         self.tool_calls = params.get("tool_calls", []) if params else []
+        
+        response_breakdown = message_text.removeprefix("<think>").split("</think>\n\n")
+        self.thinking_text = response_breakdown[0] if len(response_breakdown) > 1 else []
+        self.answer_text = response_breakdown[-1]
 
     def get_type(self) -> str:
         return "ai"
