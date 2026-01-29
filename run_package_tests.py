@@ -1,5 +1,6 @@
 from runnables import addition_runnable, subtraction_runnable, multiplication_runnable, division_runnable
 from runnables import json_builder_runnable, json_parser_runnable
+from runnables import prompt_formatter_runnable
 from messages import message, chat_history
 
 def running_tests(testScope):
@@ -20,6 +21,8 @@ def running_tests(testScope):
             return message.testing()
         case "ChatH":
             return chat_history.testing()
+        case "PromptF":
+            return prompt_formatter_runnable.testing()
         case "All":
             addition_runnable.testing()
             subtraction_runnable.testing()
@@ -29,6 +32,7 @@ def running_tests(testScope):
             json_parser_runnable.testing()
             message.testing()
             chat_history.testing()
+            prompt_formatter_runnable.testing()
 
 if __name__ == "__main__":
-    running_tests("All")
+    running_tests("PromptF")

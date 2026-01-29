@@ -26,7 +26,6 @@ class Runnable(Generic[InputT, OutputT, ConfigT]):
     async def _stream(self, input: InputT, config: ConfigT | None = None) -> AsyncGenerator[OutputT, None]:
         yield await self._call(input, config)
 
-
     async def invoke(self, input: InputT, config: ConfigT | None = None) -> OutputT:
         return await self._call(input, config)
     
@@ -41,6 +40,13 @@ class Runnable(Generic[InputT, OutputT, ConfigT]):
     
     def pipe(self, newRunnable: Runnable[OutputT, MidT, ConfigT]) -> RunnableSequence[InputT, MidT, ConfigT]:
         return RunnableSequence([self, newRunnable])
+    
+    def __or__(self, right_operand):
+        if isinstance(right_operand, Runnable):
+            return self.pipe(right_operand)
+        else:
+            raise NotImplemented("Not possible to use the pipe operator for this combination or types.")
+
 
 class RunnableSequence(Runnable[InputT, OutputT, ConfigT], Generic[InputT, OutputT, ConfigT]):
     def __init__(self, runnables: Sequence[Runnable[InputT, OutputT, ConfigT]]) -> None:
@@ -74,5 +80,3 @@ class RunnableSequence(Runnable[InputT, OutputT, ConfigT], Generic[InputT, Outpu
 
     def pipe(self, newRunnable: Runnable[OutputT, MidT, ConfigT]) -> RunnableSequence[InputT, MidT, ConfigT]:
         return RunnableSequence(self.runnables + [newRunnable])
-
-
