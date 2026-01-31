@@ -1,10 +1,9 @@
 import time, re, asyncio, json
 from collections import deque
 from typing import Mapping, Tuple, List
-from llama_cpp import Llama, ChatCompletionRequestMessage
+from llama_cpp import Llama
 from messages import ChatHistory, SystemMessage, ToolMessage, HumanMessage, AIMessage, BaseMessage
-from runnables import AdditionRunnable, SubtractionRunnable, MultiplicationRunnable, DivisionRunnable
-from calculator import Calculator
+from runnables import CalculatorRunnable
 
 
 class ChatRunner():
@@ -13,8 +12,8 @@ class ChatRunner():
         self.llm = Llama(
             model_path=self.MODEL_PATH,
             n_ctx=32768,        # Max number of tokens processed per inference
-            n_gpu_layers=-1,   # Offload all threads to the GPU
-            n_threads=4,       # Threads used for inference
+            n_gpu_layers=-1,    # Offload all threads to the GPU
+            n_threads=4,        # Threads used for inference
             verbose=False       # Metal logs for debugging
         )
         self.chat = ChatHistory()
@@ -72,8 +71,8 @@ class ChatRunner():
                 print(text)
 
             if execution_plan is not None and execution_plan != "":
-                calc = Calculator(execution_plan)
-                result = asyncio.run(calc.execute_plan())
+                calc = CalculatorRunnable()
+                result = asyncio.run(calc.invoke(execution_plan))
                 new_msg = ToolMessage("Result: " + f'{result:.2f}' + ".", "calculator")
                 message_queue.append(new_msg) 
                 self.chat.add_message(new_msg)
@@ -221,13 +220,13 @@ def testing():
         #test_simple_questions(chat)
 
         ## Two consecutive operations.
-        test_prompt_chain_pattern(chat)
+        #test_prompt_chain_pattern(chat)
 
         ## Using Atom of Thought.
         #test_calculator_simple_math(chat)
 
         ## Using Atom of Thought for a more complex formula.
-        #test_calculator_complex_math(chat)
+        test_calculator_complex_math(chat)
 
     except Exception as e:
         print(f'Chat runner failed with unexpected error: ', e)

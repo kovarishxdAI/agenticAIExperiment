@@ -5,3 +5,4 @@ from .multiplication_runnable import MultiplicationRunnable
 from .division_runnable import DivisionRunnable
 from .json_builder_runnable import JsonBuilderRunnable
 from .json_parser_runnable import JsonParserRunnable
+from .calculator_runnable import CalculatorRunnable

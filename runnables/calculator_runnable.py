@@ -1,5 +1,6 @@
-from typing import TypedDict, Literal, Dict, List, Any
+from typing import TypedDict, Literal, Dict, List, Any, TypeVar
 from runnables import my_runnable, addition_runnable, subtraction_runnable, multiplication_runnable, division_runnable, deferrable_runnable
+from collections.abc import Mapping
 import json, asyncio
 
 class Atom(TypedDict):
@@ -12,16 +13,39 @@ class Atom(TypedDict):
 class AtomPlan(TypedDict):
     atoms: List[Atom]
 
+
+OutputT = TypeVar("OutputT", float, int)
+ConfigT = TypeVar("ConfigT", bound=Mapping)
+
 ## ========================================//===========//========================================
 ## Execution of linear or non-linear plans.
 ## ========================================//===========//========================================
-class Calculator():
-    def __init__(self, atom_plan_str: str) -> None:
-        self.atom_plan_str = atom_plan_str
-        try:
-            self.atom_plan: AtomPlan = self._validate_atom_plan(json.loads(self.atom_plan_str))
-        except Exception as e:
-            raise RuntimeError(f"Failed to parse atom plan to json with error {e}")
+class CalculatorRunnable(my_runnable.Runnable[str, OutputT, ConfigT]):
+    """
+    A class that executes a series of operations defined in an atom plan, resolving dependencies 
+    and applying the corresponding operations in a topologically sorted order.
+
+    The `CalculatorRunnable` class is designed to handle a series of computational tasks, each represented 
+    as an "atom" in the atom plan. It performs plan validation, resolves dependencies, and executes the 
+    operations defined in the atom plan.
+
+    Atoms in the plan are either "tool" (intermediate operations) or "final" (the last operation, 
+    whose result is returned). The class manages input resolution, execution order, and error handling 
+    during the pipeline execution.
+
+    Example for (15 + 7) * 3 - 10:
+    {
+        "atoms": [
+            {"id": 1, "kind": "tool", "name": "add", "input": {"a": 15, "b": 7}, "dependsOn": []},
+            {"id": 2, "kind": "tool", "name": "multiply", "input": {"a": "<result_of_1>", "b": 3}, "dependsOn": [1]},
+            {"id": 3, "kind": "tool", "name": "subtract", "input": {"a": "<result_of_2>", "b": 10}, "dependsOn": [2]},
+            {"id": 4, "kind": "final", "name": "report", "dependsOn": [3]}
+        ]
+    }
+    """
+    def __init__(self, config: ConfigT | None = None) -> None:
+        super().__init__(config=config)
+        self.name = self.__class__.__name__
 
     def _validate_atom(self, atom: Dict[str, Any]) -> Atom:
         if not isinstance(atom, dict):
@@ -89,7 +113,7 @@ class Calculator():
                 resolved[key] = value
         return resolved
     
-    def _topological_sort(self):
+    def _topological_sort(self) -> AtomPlan:
         atoms = {atom["id"]: atom for atom in self.atom_plan["atoms"]}
         visited = set()
         sorted_atoms: AtomPlan = []
@@ -138,19 +162,56 @@ class Calculator():
                 config = { "signature": atom["id"] }
             )
 
-            pipeline = pipeline.pipe(runnable) if pipeline else runnable
+            pipeline = pipeline | runnable if pipeline else runnable
 
         return pipeline
     
-    async def execute_plan(self) -> Any:
+    async def _call(self, atom_plan: str | dict, config: ConfigT | None = None) -> OutputT:
+        """
+        Executes the provided atom plan, resolving dependencies and running the corresponding operations in the correct order.
+
+        This method takes an atom plan (either as a JSON string or a dictionary) and performs the following steps:
+        
+        1. **Parsing and Validation**: The atom plan is parsed from JSON (if given as a string) and validated.
+           This ensures that all required keys and structures are present and correct.
+        
+        2. **Building Execution Plan**: A topological sort of the atoms is performed to determine the correct
+           order of execution, resolving dependencies as needed.
+        
+        3. **Running Operations**: For each atom (excluding the final one), the appropriate runnable 
+           operation is created based on its name, and inputs are resolved. The operations are then 
+           executed sequentially.
+
+        4. **Returning the Result**: The result of the final atom (the last operation in the pipeline) 
+           is returned as the output of the method.
+
+        Args:
+            atom_plan (str | dict): The atom plan, either as a JSON string or a Python dictionary.
+            config (ConfigT | None, optional): Optional configuration to pass to the execution pipeline.
+
+        Returns:
+            OutputT: The result of executing the atom plan, which can be an integer or float.
+        
+        Raises:
+            RuntimeError: If parsing or validating the atom plan fails, or if any execution error occurs.
+
+        Example:
+            atom_plan = '{"atoms": [{"id": 1, "kind": "tool", "name": "add", "input": {"a": 2, "b": 3}, "dependsOn": []}, {"id": 2, "kind": "final", "name": "result", "input": {}, "dependsOn": [1]}]}'
+            result = await calculator._call(atom_plan)
+            print(result)  # Should output 5 if the atom plan performs an addition.
+        """
+        try:
+            atom_plan_json = json.loads(atom_plan) if isinstance(atom_plan, str) else atom_plan
+            self.atom_plan: AtomPlan = self._validate_atom_plan(atom_plan_json)
+        except Exception as e:
+            raise RuntimeError(f"Failed to parse atom plan to json with error {e}")
 
         pipeline = self._build_execution_plan()
         output = await pipeline.invoke(1, {})
 
         return output
 
-    def __str__(self) -> str:
-        return self.atom_plan_str
+
 
 def testing():
     print('Testing Calculator:\n')
@@ -189,21 +250,20 @@ def testing():
             ]
         }
 
+        calc = CalculatorRunnable()
+
         print('Test 1: Linear plan.')
-        calc = Calculator(json.dumps(atom_plan))
-        end_result = asyncio.run(calc.execute_plan())
+        end_result = asyncio.run(calc.invoke(json.dumps(atom_plan)))
         assert end_result == 56, f"Expected 56, got {end_result}."
         print(f'Test 1 passed. Passed (15 + 7) * 3 - 10, expected 56, and received {end_result}.\n')
 
         print('Test 2: Non-linear, but ordered plan.')
-        non_linear_calc_non_linear_plan = Calculator(json.dumps(non_linear_atom_plan))
-        end_result = asyncio.run(non_linear_calc_non_linear_plan.execute_plan())
+        end_result = asyncio.run(calc.invoke(json.dumps(non_linear_atom_plan)))
         assert end_result == 129.6, f"Expected 129.6, got {end_result}."
         print(f'Test 2 passed. Passed (2 + 10 + 4 + 2) * (8 - 4 / 5), expected 129.6, received {end_result}.\n')
 
         print('Test 3: Non-linear, unordered plan.')
-        non_linear_calc_non_linear_plan = Calculator(json.dumps(scrambled_non_linear_atom_plan))
-        end_result = asyncio.run(non_linear_calc_non_linear_plan.execute_plan())
+        end_result = asyncio.run(calc.invoke(json.dumps(scrambled_non_linear_atom_plan)))
         assert end_result == 129.6, f"Expected 129.6, got {end_result}."
         print(f'Test 3 passed. Passed (2 + 10 + 4 + 2) * (8 - 4 / 5), expected 129.6, received {end_result}.\n')
 
